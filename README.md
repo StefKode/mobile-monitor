@@ -6,7 +6,7 @@ You should make sure to have a reliable network interface name when connecting y
 
 Recommended is to create a udev rule:
 
-'''
+```
 edit /etc/udev/rules.d/99-persistent-net.rules
 
 # add:
@@ -14,5 +14,5 @@ SUBSYSTEM=="net", ACTION=="add", ATTRS{product}=="<product-device>", NAME="mobil
 
 udevadm control --reload-rules
 udevadm trigger
-'''
+```
 (source: https://unix.stackexchange.com/questions/750214/disable-udev-renaming-for-android-usb-tethering-using-randon-macs)
