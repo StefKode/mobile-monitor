@@ -1,0 +1,96 @@
+#!/bin/bash
+# Copyright: Stefan Koch 2023
+# License: GPL v3
+
+IF=mobile0
+
+set -e
+
+if [ ! -e .monlast ]; then
+	sum=0
+else
+	sum=$( cat .monlast )
+fi
+
+rxbyteold=0
+txbyteold=0
+
+function subtract {
+	echo "scale=3;$1 - $2" | bc
+}
+
+function filterRX {
+	grep "RX pack" | sed -e 's/^.*bytes //' -e 's/ .*$//'
+}
+
+function filterTX {
+	grep "TX pack" | sed -e 's/^.*bytes //' -e 's/ .*$//'
+}
+
+function displayGB {
+	echo "scale=3;$1 / (1024 * 1024 * 1024)" | bc
+}
+
+init=1
+while [ 1 ];
+do
+	clear
+
+	set +e
+	inet=$(ifconfig $IF | grep inet)
+	if [ "$inet" = "" ]; then
+		echo "Mobile Internet OFFLINE ($(displayGB $sum) GB)"
+		sleep 5
+		continue
+	fi
+
+	rxbyte=$( ifconfig $IF | filterRX )
+	txbyte=$( ifconfig $IF | filterTX )
+	set -e
+
+	if [ $init -eq 1 ]; then
+		init=0
+		rxbyteold=$rxbyte
+		txbyteold=$txbyte
+		continue
+	fi
+
+	if [ "$rxbyte" -lt "$rxbyteold" ]; then
+		rxbyteold=$rxbyte
+	fi
+
+	if [ "$txbyte" -lt "$txbyteold" ]; then
+		txbyteold=$txbyte
+	fi
+
+	if [ "$rxbyte" = "" ]; then
+		echo "skip"
+		sleep 1
+		continue
+	else
+		rx=$[ "$rxbyte" - "$rxbyteold" ]
+	fi
+	if [ "$txbyte" = "" ]; then
+		echo "skip"
+		sleep 1
+		continue
+	else
+		tx=$[ "$txbyte" - "$txbyteold" ]
+	fi
+	new=$[ $rx + $tx ]
+	sum=$[ $sum + $new ]
+	if [ 0 -eq 1 ]; then
+		echo "$rx"
+		echo "$rxbyteold"
+		echo "$tx"
+		echo "$txbyteold"
+		echo "$(displayGB $new)"
+	fi
+	rxbyteold=$rxbyte
+	txbyteold=$txbyte
+
+	echo "$sum" > .monlast
+	echo "$(date) : $(displayGB $new) GB" >> .monhist
+	echo "Internet: $(displayGB $sum) GB"
+	sleep 15
+done
